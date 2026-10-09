@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบ CAI วิทยาการคำนวณ เรื่องความจริงเสริม (AR)</title>
+    
+    <!-- Google Font: Sarabun -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+    
+    <!-- Model Viewer (WebAR) -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+
+    <style>
+        :root {
+            --primary-dark: #0f172a; /* น้ำเงินเข้ม */
+            --primary-light: #1e293b;
+            --bg-light: #f8fafc; /* เทาอ่อน */
+            --bg-white: #ffffff;
+            --text-main: #334155;
+            --text-light: #f8fafc;
+            --accent: #3b82f6;
+            --success: #059669;
+            --danger: #dc2626;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; font-family: 'Sarabun', sans-serif; }
+        body { margin: 0; padding: 0; background-color: var(--bg-light); color: var(--text-main); line-height: 1.6; }
+        
+        /* Layouts */
+        header { background-color: var(--primary-dark); color: var(--text-light); padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { font-size: 1.25rem; font-weight: 600; margin: 0; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 1.5rem 1rem; position: relative; }
+        
+        /* Notifications */
+        #notification-area { position: fixed; top: 1rem; right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; }
+        .toast { padding: 1rem; border-radius: 4px; color: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); min-width: 250px; animation: slideIn 0.3s ease-out; }
+        .toast.success { background-color: var(--success); }
+        .toast.error { background-color: var(--danger); }
+        .toast.info { background-color: var(--accent); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        /* Cards & Panels */
+        .card { background: var(--bg-white); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid var(--border); }
+        .card-header { background-color: var(--primary-light); color: var(--text-light); padding: 1rem; margin: -1.5rem -1.5rem 1.5rem -1.5rem; border-radius: 8px 8px 0 0; }
+        .card-header h2 { margin: 0; font-size: 1.2rem; }
+        
+        /* Buttons */
+        button { cursor: pointer; padding: 0.5rem 1rem; border: none; border-radius: 4px; font-weight: 500; transition: opacity 0.2s; font-size: 1rem; }
+        button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background-color: var(--accent); color: var(--bg-white); }
+        .btn-success { background-color: var(--success); color: var(--bg-white); }
+        .btn-danger { background-color: var(--danger); color: var(--bg-white); }
+        .btn-outline { background-color: transparent; border: 1px solid var(--text-light); color: var(--text-light); }
+        .btn-outline-dark { background-color: transparent; border: 1px solid var(--text-main); color: var(--text-main); }
+        
+        /* Forms */
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; font-family: 'Sarabun'; font-size: 1rem; }
+        .form-group input:focus { outline: 2px solid var(--accent); }
+        
+        /* Utilities */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .alert { padding: 1rem; border-radius: 4px; margin-bottom: 1rem; font-weight: 500; }
+        .alert-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+        .alert-info { background-color: #dbeafe; color: #1e40af; border: 1px solid #60a5fa; }
+        
+        /* Tables */
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; min-width: 600px; }
+        th, td { border: 1px solid var(--border); padding: 0.75rem; text-align: left; }
+        th { background-color: var(--primary-dark); color: var(--text-light); }
+        tr:nth-child(even) { background-color: var(--bg-light); }
+
+        /* Media Queries */
+        @media (max-width: 600px) {
+            header { flex-direction: column; gap: 0.5rem; text-align: center; }
+            table { font-size: 0.85rem; }
+            th, td { padding: 0.5rem; }
+            .card { padding: 1rem; }
+        }
+
+        /* 3D Model Viewer specific */
+        model-viewer { width: 100%; height: 400px; background-color: #eee; border-radius: 8px; }
+        
+        /* Quiz choices */
+        .choice-label { display: block; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.5rem; cursor: pointer; }
+        .choice-label:focus-within, .choice-label:hover { background-color: var(--bg-light); border-color: var(--accent); }
+        .choice-label input { margin-right: 10px; width: 1.2rem; height: 1.2rem; vertical-align: middle; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1 class="header-title">CAI: วิทยาการคำนวณ ความจริงเสริม (AR)</h1>
+    <div id="user-menu" class="hidden">
+        <span id="user-display-name"></span>
+        <button class="btn-outline" style="margin-left: 1rem;" onclick="app.logout()">ออกจากระบบ</button>
+    </div>
+</header>
+
+<div id="notification-area"></div>
+
+<main class="container" id="app-container">
+    <!-- View: Setup Error -->
+    <div id="view-setup" class="card hidden">
+        <div class="card-header" style="background-color: var(--danger);">
+            <h2>⚠️ ระบบยังไม่พร้อมใช้งาน (ตั้งค่าไม่สมบูรณ์)</h2>
+        </div>
+        <p><strong>ผู้สอน/ผู้ดูแลระบบ:</strong> โปรดระบุ <code>SUPABASE_URL</code> และ <code>SUPABASE_ANON_KEY</code> ในส่วนตั้งค่าต้นไฟล์ <code>courseware.html</code></p>
+    </div>
+
+    <!-- View: Auth -->
+    <div id="view-auth" class="card hidden">
+        <div class="card-header"><h2>เข้าสู่ระบบ / ลงทะเบียนผู้เรียน</h2></div>
+        
+        <div id="login-form-container">
+            <div class="form-group">
+                <label for="auth-identifier">อีเมล (ผู้สอน) หรือ รหัสนักเรียน 11 หลัก (ผู้เรียน):</label>
+                <input type="text" id="auth-identifier" placeholder="เช่น 11111111111 หรือ teacher@school.com">
+            </div>
+            <div class="form-group">
+                <label for="auth-password">รหัสผ่าน:</label>
+                <input type="password" id="auth-password">
+            </div>
+            <button class="btn-primary" onclick="app.login()">เข้าสู่ระบบ</button>
+            <hr style="margin: 1.5rem 0; border: 0.5px solid var(--border);">
+            <p>สำหรับนักเรียนที่ยังไม่มีบัญชี: <button class="btn-outline-dark" onclick="app.toggleAuthMode('register')">สมัครสมาชิก</button></p>
+        </div>
+
+        <div id="register-form-container" class="hidden">
+            <div class="form-group">
+                <label for="reg-id">รหัสประจำตัวนักเรียน (11 หลัก):</label>
+                <input type="text" id="reg-id" maxlength="11">
+                <small style="color: #64748b;">* ต้องมีชื่อในระบบแล้ว และใช้อีเมลรูปแบบ รหัส@snru.ac.th อัตโนมัติ</small>
+            </div>
+            <div class="form-group">
+                <label for="reg-password">ตั้งรหัสผ่าน (ขั้นต่ำ 6 ตัวอักษร):</label>
+                <input type="password" id="reg-password">
+            </div>
+            <button class="btn-success" onclick="app.registerStudent()">ลงทะเบียน</button>
+            <button class="btn-outline-dark" onclick="app.toggleAuthMode('login')">ยกเลิก</button>
+        </div>
+    </div>
+
+    <!-- View: Teacher Dashboard -->
+    <div id="view-teacher" class="hidden">
+        <div class="card">
+            <div class="card-header"><h2>แผงควบคุมสำหรับผู้สอน</h2></div>
+            <div style="margin-bottom: 1rem;">
+                <button class="btn-primary" onclick="app.loadTeacherData('students')">ผลการเรียนนักเรียน</button>
+                <button class="btn-primary" onclick="app.loadTeacherData('submissions')">ตรวจงาน (ต้นแบบ)</button>
+                <button class="btn-success" onclick="app.exportCSV()">ดาวน์โหลด CSV</button>
+            </div>
+            <div id="teacher-content" class="table-responsive"></div>
+        </div>
+    </div>
+
+    <!-- View: Student Dashboard -->
+    <div id="view-student" class="hidden">
+        <div class="card">
+            <div class="card-header"><h2>แดชบอร์ดการเรียน</h2></div>
+            <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
+                <div style="flex: 1; min-width: 200px; text-align: center;">
+                    <img id="student-photo" src="" alt="Profile Photo" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; background: #eee; display: block; margin: 0 auto 1rem auto;">
+                    <input type="file" id="upload-photo" accept="image/png, image/jpeg" class="hidden" onchange="app.uploadProfilePhoto(event)">
+                    <button class="btn-outline-dark" style="font-size: 0.9rem;" onclick="document.getElementById('upload-photo').click()">เปลี่ยนรูปโปรไฟล์</button>
+                    <small style="display:block; margin-top:0.5rem; color:#64748b;">เฉพาะ PNG/JPG ไม่เกิน 2MB</small>
+                </div>
+                <div style="flex: 2; min-width: 250px;">
+                    <h3>เส้นทางการเรียนรู้</h3>
+                    <ul style="list-style: none; padding: 0;" id="student-path">
+                        <!-- สร้างโดย JS -->
+                    </ul>
+                </div>
+            </div>
+            <div id="student-summary" class="alert alert-info hidden"></div>
+        </div>
+    </div>
+
+    <!-- View: Lesson Content -->
+    <div id="view-lesson" class="card hidden">
+        <div class="card-header">
+            <h2 id="lesson-title">บทเรียน</h2>
+        </div>
+        <div id="lesson-content"></div>
+        
+        <!-- แบบฝึกหัดแทรก (Client-side control) -->
+        <div id="lesson-interspersed" class="hidden" style="margin-top: 2rem; padding: 1.5rem; background: var(--bg-light); border-radius: 8px; border: 1px solid var(--border);">
+            <h3>คำถามทบทวนความเข้าใจ</h3>
+            <div id="lesson-question-container"></div>
+        </div>
+        
+        <!-- ส่วนส่งงาน (เฉพาะหน่วยที่กำหนด) -->
+        <div id="lesson-submission" class="hidden" style="margin-top: 2rem; padding: 1.5rem; border: 2px dashed var(--border); border-radius: 8px;">
+            <h3>ส่งงานปฏิบัติ AR (หน่วยที่ 4)</h3>
+            <p style="font-size:0.9rem; color:#64748b;">สามารถส่งเป็นลิงก์เว็บไซต์ หรืออัปโหลดไฟล์ (PDF, PNG, JPG, MP4 ไม่เกิน 20MB)</p>
+            
+            <div class="form-group">
+                <label>รูปแบบการส่งงาน:</label>
+                <select id="submit-kind" onchange="app.toggleSubmissionForm()">
+                    <option value="link">ส่งลิงก์ URL</option>
+                    <option value="file">อัปโหลดไฟล์</option>
+                </select>
+            </div>
+            
+            <div id="submit-link-container" class="form-group">
+                <label>URL ของผลงาน (ต้องขึ้นต้นด้วย http:// หรือ https://):</label>
+                <input type="url" id="submit-url" placeholder="https://...">
+            </div>
+            
+            <div id="submit-file-container" class="form-group hidden">
+                <label>เลือกไฟล์:</label>
+                <input type="file" id="submit-file" accept=".pdf, .png, .jpg, .jpeg, .mp4">
+            </div>
+            
+            <button class="btn-primary" id="btn-submit-work" onclick="app.submitWork()">ส่งงาน</button>
+        </div>
+
+        <div style="margin-top: 2rem; display: flex; justify-content: space-between;">
+            <button class="btn-outline-dark" onclick="app.showStudentDashboard()">กลับหน้าหลัก</button>
+            <button id="lesson-next-btn" class="btn-success" onclick="app.finishUnit()">ทำเครื่องหมายว่าเรียนจบ</button>
+        </div>
+    </div>
+
+    <!-- View: Quiz -->
+    <div id="view-quiz" class="card hidden">
+        <div class="card-header">
+            <h2 id="quiz-title">แบบทดสอบ</h2>
+        </div>
+        <div class="alert alert-info">กรุณาเลือกคำตอบที่ถูกต้องที่สุดเพียงข้อเดียว เมื่อส่งแล้วจะไม่สามารถแก้ไขได้</div>
+        <div id="quiz-container"></div>
+        <div style="margin-top: 1.5rem; text-align: right;">
+            <button id="btn-submit-quiz" class="btn-primary" onclick="app.submitQuiz()">ส่งคำตอบ</button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+/** 
+ * ==========================================
+ * 1. CONFIGURATION
+ * ==========================================
+ * กำหนด URL และ Key จากหน้า Project Settings -> API ของ Supabase
+ * ห้ามฝัง Service Role Key เด็ดขาด ใช้เฉพาะ public anon key เท่านั้น
+ */
+const SUPABASE_URL = ''; 
+const SUPABASE_ANON_KEY = ''; 
+
+/**
+ * ==========================================
+ * 2. INITIALIZATION & STATE
+ * ==========================================
+ */
+let supabase = null;
+const state = {
+    user: null,
+    role: null, // 'student' or 'teacher'
+    studentData: null,
+    progress: [],
+    attempts: [],
+    currentQuizKind: null,
+    currentUnit: null,
+    quizAnswers: {}
+};
+
+/* --- Utilities --- */
+// ระบบแจ้งเตือนแทน alert()
+const notify = (message, type = 'info') => {
+    const area = document.getElementById('notification-area');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    area.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+};
+
+// ป้องกัน XSS เมื่อสร้าง Element ที่รับค่าจากผู้ใช้
+const safeText = (element, text) => {
+    if(text !== null && text !== undefined) {
+        element.textContent = text;
+    }
+};
+
+const isValidURL = (string) => {
+    try {
+        const url = new URL(string);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (_) {
+        return false;
+    }
+};
+
+// ฟังก์ชันสร้าง UUID แบบง่ายฝั่ง Client สำหรับตั้งชื่อไฟล์
+const generateUUID = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
+
+/* --- Data: Course Content (No quiz answers here) --- */
+const COURSE_CONTENT = {
+    1: {
+        title: "หน่วยที่ 1 พื้นฐานความจริงเสริม",
+        body: `
+            <p><strong>วัตถุประสงค์:</strong> อธิบายความหมายและองค์ประกอบของเทคโนโลยีความจริงเสริมได้ถูกต้อง</p>
+            <h3>ความจริงเสริม (Augmented Reality - AR) คืออะไร?</h3>
+            <p>อ้างอิงจาก Azuma (1997) เทคโนโลยีความจริงเสริมต้องประกอบด้วยคุณสมบัติ 3 ประการคือ:</p>
+            <ol>
+                <li>การผสานโลกจริงกับวัตถุเสมือน (Combines real and virtual)</li>
+                <li>การโต้ตอบแบบเรียลไทม์ (Interactive in real time)</li>
+                <li>การจัดวางสัมพันธ์กับตำแหน่งในปริภูมิสามมิติ (Registered in 3-D)</li>
+            </ol>
+            <h3>Reality-Virtuality Continuum</h3>
+            <p>Milgram และ Kishino (1994) ได้เสนอแนวคิดแกนความต่อเนื่อง ซึ่งอธิบายว่า AR เป็นส่วนหนึ่งของ Mixed Reality (MR) ที่อยู่กึ่งกลางระหว่างสภาพแวดล้อมจริง (Real Environment) และโลกเสมือนทั้งหมด (Virtual Environment - VR) โดยดึงสภาพแวดล้อมจริงเป็นหลักแล้วเสริมด้วยข้อมูลเสมือน</p>
+            <p><strong>ตัวอย่างในห้องเรียน:</strong> การใช้แท็บเล็ตส่องไปที่บัตรคำศัพท์ เพื่อให้เกิดภาพสามมิติของสัตว์ปรากฏขึ้นบนโต๊ะเรียน</p>
+        `,
+        questions: [{
+            q: "ตามคำนิยามของ Azuma (1997) ข้อใดไม่ใช่คุณสมบัติหลักของความจริงเสริม (AR)?",
+            choices: ["ผสานโลกจริงกับวัตถุเสมือน", "โต้ตอบแบบเรียลไทม์", "ตัดขาดผู้ใช้จากสภาพแวดล้อมจริงทั้งหมด", "จัดวางสัมพันธ์ในตำแหน่งสามมิติ"],
+            ans: 2, // สำหรับ Client-side check เท่านั้น
+            explanation: "AR ผสมผสานโลกจริงและเสมือน ไม่ได้ตัดขาดโลกจริง ซึ่งการตัดขาดเป็นลักษณะของ VR"
+        }]
+    },
+    2: {
+        title: "หน่วยที่ 2 ชนิดและเทคโนโลยี AR",
+        body: `
+            <p><strong>วัตถุประสงค์:</strong> จำแนกประเภทของเทคโนโลยี AR และข้อจำกัดในการใช้งานได้</p>
+            <h3>ประเภทของเทคโนโลยี AR</h3>
+            <ul>
+                <li><strong>Marker-based:</strong> ใช้รูปภาพสัญลักษณ์เฉพาะ (Marker) เป็นจุดอ้างอิงเพื่อแสดงวัตถุ 3 มิติ</li>
+                <li><strong>Markerless:</strong> ไม่ต้องใช้ Marker แต่ใช้เซ็นเซอร์จับพื้นผิวจริง เช่น พื้นโต๊ะ</li>
+                <li><strong>Location-based:</strong> ใช้ GPS และเข็มทิศเพื่อแสดงข้อมูลตามสถานที่จริง</li>
+                <li><strong>Projection-based:</strong> การฉายแสงโปรเจคเตอร์ลงบนพื้นผิวจริงเพื่อสร้างการโต้ตอบ</li>
+            </ul>
+            <h3>WebAR vs แอปพลิเคชันเนทีฟ</h3>
+            <p><strong>WebAR</strong> ทำงานผ่านเบราว์เซอร์โดยไม่ต้องโหลดแอปเพิ่ม ส่วน <strong>แอปเนทีฟ</strong> เข้าถึงฮาร์ดแวร์ได้ลึกกว่า</p>
+            <p><strong>ข้อจำกัดที่ควรทราบ:</strong> เทคโนโลยี AR โดยเฉพาะ Markerless และ WebAR <u>ไม่ได้รองรับในสมาร์ทโฟนทุกรุ่น</u> การใช้งานขึ้นอยู่กับเซ็นเซอร์วัดความลึก เวอร์ชันเบราว์เซอร์ แสงสว่าง และความเสถียรของอินเทอร์เน็ต</p>
+        `,
+        questions: [{
+            q: "เทคโนโลยี AR ชนิดใดที่อาศัย GPS และเข็มทิศในการกำหนดตำแหน่งแสดงผลมากที่สุด?",
+            choices: ["Marker-based", "Location-based", "Projection-based", "WebAR"],
+            ans: 1,
+            explanation: "Location-based AR ใช้พิกัดภูมิศาสตร์ (GPS) เป็นหลักในการทำงาน"
+        }]
+    },
+    3: {
+        title: "หน่วยที่ 3 การออกแบบสื่อ AR เพื่อการเรียนรู้",
+        body: `
+            <p><strong>วัตถุประสงค์:</strong> ประยุกต์ใช้หลักการออกแบบสื่อมัลติมีเดียในการสร้าง AR ได้</p>
+            <h3>ภาระทางปัญญาและหลักการของ Mayer</h3>
+            <p>ในการออกแบบต้องระวังไม่ให้เกิดภาระทางปัญญามากเกินไป โดยประยุกต์ใช้หลักการของ Mayer (Multimedia Learning, ฉบับปรับปรุง) ดังนี้:</p>
+            <ul>
+                <li><strong>Coherence Principle:</strong> ตัดข้อความ ภาพ หรือเสียงที่ไม่จำเป็นออก ให้เหลือเฉพาะสาระสำคัญ</li>
+                <li><strong>Signaling Principle:</strong> เน้นหรือทำเครื่องหมายจุดที่สำคัญในโมเดล 3 มิติ เพื่อนำสายตาผู้เรียน</li>
+                <li><strong>Segmenting Principle:</strong> แบ่งเนื้อหาที่ซับซ้อนออกเป็นช่วงสั้นๆ ให้ผู้เรียนก้าวไปทีละขั้น</li>
+            </ul>
+            <h3>การรองรับผู้ใช้และทางเลือกสำรอง</h3>
+            <p>หน้าจอควบคุมสำหรับเด็กประถมต้องเรียบง่าย ปุ่มใหญ่ และ<strong>ต้องเตรียมทางเลือกสำรอง (Fallback)</strong> เสมอ เช่น หากอุปกรณ์ไม่รองรับโหมดกล้อง AR ก็ให้แสดงโมเดล 3 มิติที่หมุนดูได้บนจอ หรือใช้วิดีโอแทน</p>
+        `,
+        questions: [{
+            q: "หลักการ Coherence Principle ของ Mayer แนะนำให้ปฏิบัติอย่างไร?",
+            choices: ["ใส่ภาพเคลื่อนไหวและเสียงให้มากที่สุด", "ตัดเนื้อหาและเสียงที่ไม่เกี่ยวข้องออก", "แบ่งเนื้อหาเป็นบทย่อยๆ", "ใช้ข้อความคู่กับเสียงอ่านตลอดเวลา"],
+            ans: 1,
+            explanation: "Coherence Principle คือการตัดสิ่งรบกวนที่ไม่จำเป็นออก เพื่อลดภาระทางปัญญา"
+        }]
+    },
+    4: {
+        title: "หน่วยที่ 4 ปฏิบัติ: สร้างสื่อ WebAR ขั้นพื้นฐาน",
+        body: `
+            <p><strong>วัตถุประสงค์:</strong> สามารถใช้งานและแสดงผลโมเดล 3 มิติผ่าน WebAR ได้</p>
+            <p>หน่วยนี้เราใช้ <code>&lt;model-viewer&gt;</code> ซึ่งเป็นมาตรฐานเว็บ ขั้นตอนคือ:</p>
+            <ol>
+                <li>เตรียมไฟล์โมเดล 3 มิติ นามสกุล <code>.glb</code></li>
+                <li>ฝากไฟล์ไว้บนเซิร์ฟเวอร์ที่รองรับ <code>HTTPS</code></li>
+                <li>ฝังโค้ด: <code>&lt;model-viewer src="ลิงก์ไฟล์.glb" ar camera-controls&gt;&lt;/model-viewer&gt;</code></li>
+            </ol>
+            <p><strong>ทดสอบโมเดลจำลอง:</strong> ลองหมุนดูโมเดลด้านล่าง หากอุปกรณ์รองรับ AR จะมีปุ่มปรากฏมุมขวาล่าง <em>(ข้อจำกัด: อาจไม่แสดงผลในมือถือรุ่นเก่า)</em></p>
+            <div style="margin: 1.5rem 0; border: 2px solid var(--border); padding: 1rem; border-radius: 8px; background: #fff;">
+                <model-viewer 
+                    src="https://modelviewer.dev/shared-assets/models/Astronaut.glb" 
+                    ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz" 
+                    alt="นักบินอวกาศ" 
+                    ar 
+                    camera-controls 
+                    auto-rotate>
+                    <div slot="poster" style="display:flex; justify-content:center; align-items:center; height:100%; color:#666;">กำลังโหลดโมเดล...</div>
+                </model-viewer>
+                <p class="text-center" style="font-size: 0.85rem; margin-top:0.5rem; color: #64748b;">(โมเดลจำลองจาก ModelViewer.dev)</p>
+            </div>
+        `,
+        questions: []
+    },
+    5: {
+        title: "หน่วยที่ 5 การทดสอบและประเมินสื่อ AR",
+        body: `
+            <p><strong>วัตถุประสงค์:</strong> เข้าใจวิธีการประเมินประสิทธิภาพสื่อ AR ทางการศึกษา</p>
+            <h3>ตัวชี้วัดและการประเมิน</h3>
+            <ul>
+                <li><strong>การทดสอบผู้ใช้จริง (Usability Testing):</strong> ให้เป้าหมายลองใช้งานและบันทึกปัญหาที่พบ</li>
+                <li><strong>ดัชนีความสอดคล้อง (IOC):</strong> วิธีของ Rovinelli และ Hambleton (1977) ใช้ผู้เชี่ยวชาญตรวจสอบความสอดคล้องระหว่างข้อสอบกับวัตถุประสงค์ เกณฑ์ทั่วไปที่ยอมรับคือ IOC &ge; 0.50 (ต้องตรวจสอบเกณฑ์ดั้งเดิมเสมอ)</li>
+                <li><strong>ประสิทธิภาพ E1/E2 (80/80):</strong> E1 (คะแนนระหว่างเรียน) E2 (คะแนนหลังเรียน) คำนวณจาก (คะแนนที่ได้/คะแนนเต็ม) x 100</li>
+                <li><strong>Normalized Gain (Hake, 1998):</strong> สูตร <code>g = (Post - Pre) / (Full - Pre)</code> ใช้ดูความก้าวหน้าสัมพัทธ์ <em>หมายเหตุ: เกณฑ์ของ Hake ใช้แปลผลค่าเฉลี่ยของกลุ่ม ไม่ใช่สำหรับตัดสินผลการเรียนรายบุคคล</em></li>
+            </ul>
+        `,
+        questions: [{
+            q: "หากคะแนนก่อนเรียน 4 คะแนน และหลังเรียน 7 คะแนน (เต็ม 10) ค่า Normalized gain คือเท่าใด?",
+            choices: ["0.3", "0.5", "0.7", "3.0"],
+            ans: 1,
+            explanation: "คำนวณ: (7 - 4) / (10 - 4) = 3 / 6 = 0.5"
+        }]
+    }
+};
+
+/* --- Data: Quiz Questions (เฉลยถูกเก็บไว้ใน Database Schema 'private' แล้ว) --- */
+const QUIZ_SETS = {
+    A: [
+        { q: "1. เทคโนโลยี AR หมายถึงข้อใด?", choices: ["การสร้างโลกเสมือนทั้งหมด", "การนำวัตถุเสมือนมาซ้อนทับบนโลกจริง", "การใช้งานเครือข่ายอินเทอร์เน็ต", "การสวมแว่นตาVRเพื่อเล่นเกม"] },
+        { q: "2. ผู้ใดเป็นผู้เสนอคุณสมบัติ 3 ประการของ AR ในปี 1997?", choices: ["Mayer", "Hake", "Azuma", "Milgram"] },
+        { q: "3. AR จัดอยู่ในส่วนใดของ Reality-Virtuality Continuum?", choices: ["Mixed Reality", "Virtual Reality", "Real Environment", "Unreal Engine"] },
+        { q: "4. Marker-based AR ทำงานอย่างไร?", choices: ["ใช้ GPS ระบุตำแหน่ง", "ตรวจจับใบหน้าผู้ใช้", "ใช้เสียงสั่งการ", "ใช้ภาพสัญลักษณ์เป็นจุดอ้างอิง"] },
+        { q: "5. ข้อจำกัดสำคัญของการใช้ WebAR ในห้องเรียนคืออะไร?", choices: ["ต้องติดตั้งแอปพลิเคชันขนาดใหญ่", "จำเป็นต้องใช้อุปกรณ์ที่รองรับและอินเทอร์เน็ต", "รองรับเฉพาะระบบปฏิบัติการเดียว", "ไม่สามารถแสดงภาพสีได้"] },
+        { q: "6. หลักการ Coherence ของ Mayer แนะนำสิ่งใด?", choices: ["ใส่สีสันให้มากที่สุด", "เพิ่มเสียงดนตรีตลอดเวลา", "ตัดสิ่งรบกวนที่ไม่จำเป็นออก", "บังคับใช้แว่น 3 มิติ"] },
+        { q: "7. การแบ่งเนื้อหา AR เป็นช่วงสั้นๆ ตรงกับหลักการใด?", choices: ["Segmenting Principle", "Signaling Principle", "Spatial Contiguity", "Modality Principle"] },
+        { q: "8. นามสกุลไฟล์ใดที่นิยมใช้ใน <model-viewer>?", choices: [".mp3", ".jpg", ".doc", ".glb"] },
+        { q: "9. ค่า IOC ใช้ประเมินสิ่งใด?", choices: ["ความเร็วของแอปพลิเคชัน", "ความสอดคล้องของข้อสอบกับวัตถุประสงค์", "ความพึงพอใจของผู้เรียน", "ความละเอียดของโมเดล"] },
+        { q: "10. Normalized Gain ใช้คำนวณอะไร?", choices: ["พัฒนาการทางการเรียนเปรียบเทียบก่อนและหลัง", "ประสิทธิภาพเซิร์ฟเวอร์", "ขนาดไฟล์ที่อัปโหลด", "เวลาเฉลี่ยในระบบ"] }
+    ],
+    B: [
+        { q: "1. ตามแนวคิดของ Milgram และ Kishino (1994) AR จัดอยู่ในกลุ่มใด?", choices: ["Virtual Environment", "Real Environment", "Mixed Reality", "Physical Reality"] },
+        { q: "2. ข้อใดคือคุณสมบัติของ AR ตามนิยามของ Azuma (1997)?", choices: ["ผสานโลกจริงและเสมือน, โต้ตอบเรียลไทม์, สามมิติ", "ต้องใช้แว่น VR เท่านั้น", "ทำงานโดยไม่ใช้อินเทอร์เน็ต", "เป็นการดูวิดีโอ 360 องศา"] },
+        { q: "3. AR รูปแบบใดที่อาศัยพิกัดภูมิศาสตร์ (GPS)?", choices: ["Marker-based", "Projection-based", "Markerless", "Location-based"] },
+        { q: "4. การใช้มือถือส่องหาพื้นที่ราบเพื่อวางวัตถุ 3 มิติ เป็น AR ชนิดใด?", choices: ["Marker-based", "Markerless", "Location-based", "WebAR-only"] },
+        { q: "5. การออกแบบสื่อเพื่อลดภาระทางปัญญา ควรทำอย่างไร?", choices: ["เน้นสาระสำคัญและตัดสิ่งรบกวน", "ใส่ข้อมูลทุกอย่างไว้ในหน้าเดียว", "ใช้เอฟเฟกต์แสงสีจัดจ้าน", "เพิ่มข้อความให้ยาวที่สุด"] },
+        { q: "6. การทำลูกศรชี้เน้นส่วนสำคัญในโมเดล 3 มิติ สอดคล้องกับหลักการใด?", choices: ["Coherence Principle", "Segmenting Principle", "Redundancy Principle", "Signaling Principle"] },
+        { q: "7. แท็ก HTML มาตรฐานใดที่ใช้แสดงโหมด AR จากไฟล์ .glb?", choices: ["<video-ar>", "<model-viewer>", "<ar-canvas>", "<3d-object>"] },
+        { q: "8. หากอุปกรณ์ไม่รองรับ AR ระบบควรจัดการอย่างไร?", choices: ["ห้ามผู้ใช้เข้าเรียน", "ไม่ต้องทำอะไร", "เตรียมทางเลือกสำรอง เช่น ภาพ 3 มิติหรือวิดีโอ", "บังคับดาวน์โหลดแอปใหม่"] },
+        { q: "9. ค่า E1 ในเกณฑ์ประสิทธิภาพ 80/80 หมายถึงข้อใด?", choices: ["ร้อยละของคะแนนระหว่างเรียน", "ร้อยละของคะแนนสอบปลายภาค", "ร้อยละนักเรียนที่เข้าเรียน", "ร้อยละของคะแนนหลังเรียน"] },
+        { q: "10. สูตรการหาค่า Normalized Gain มีตัวส่วนเป็นอะไร?", choices: ["คะแนนหลังเรียน", "คะแนนก่อนเรียน", "คะแนนเต็ม - คะแนนหลังเรียน", "คะแนนเต็ม - คะแนนก่อนเรียน"] }
+    ]
+};
+
+
+const app = {
+    init: async function() {
+        if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+            document.getElementById('view-setup').classList.remove('hidden');
+            return;
+        }
+
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            if (session) {
+                await this.handleSession(session);
+            } else {
+                this.showView('view-auth');
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById('view-setup').classList.remove('hidden');
+        }
+    },
+
+    handleSession: async function(session) {
+        state.user = session.user;
+        
+        // เช็คบทบาทผ่านฟังก์ชัน RPC (is_teacher)
+        const { data: isTeacher } = await supabase.rpc('is_teacher');
+        if (isTeacher) {
+            state.role = 'teacher';
+            safeText(document.getElementById('user-display-name'), 'ผู้สอน');
+            document.getElementById('user-menu').classList.remove('hidden');
+            this.showView('view-teacher');
+            this.loadTeacherData('students');
+        } else {
+            // เช็คข้อมูลนักเรียน
+            const { data: student, error } = await supabase.from('students').select('*').eq('user_id', state.user.id).single();
+            if (student) {
+                state.role = 'student';
+                state.studentData = student;
+                safeText(document.getElementById('user-display-name'), `${student.title}${student.first_name} ${student.last_name}`);
+                document.getElementById('user-menu').classList.remove('hidden');
+                await this.loadStudentDashboard();
+            } else {
+                notify('บัญชีของคุณยังไม่ได้เชื่อมโยงกับข้อมูลนักเรียน หรือไม่มีสิทธิ์เข้าถึง', 'error');
+                setTimeout(() => this.logout(), 2000);
+            }
+        }
+    },
+
+    login: async function() {
+        const identifier = document.getElementById('auth-identifier').value.trim();
+        const password = document.getElementById('auth-password').value;
+        const btn = document.querySelector('#login-form-container .btn-primary');
+        
+        if (!identifier || !password) return notify('กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
+
+        btn.disabled = true;
+        let email = identifier;
+        if (/^\d{11}$/.test(identifier)) {
+            email = `${identifier}@snru.ac.th`;
+        }
+
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        
+        if (error) {
+            notify('เข้าสู่ระบบล้มเหลว ตรวจสอบข้อมูลอีกครั้ง', 'error');
+            btn.disabled = false;
+        } else {
+            window.location.reload();
+        }
+    },
+
+    registerStudent: async function() {
+        const studentId = document.getElementById('reg-id').value.trim();
+        const password = document.getElementById('reg-password').value;
+        const btn = document.querySelector('#register-form-container .btn-success');
+
+        if (!/^\d{11}$/.test(studentId)) return notify('รหัสประจำตัวต้องเป็นตัวเลข 11 หลัก', 'error');
+        if (password.length < 6) return notify('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'error');
+
+        btn.disabled = true;
+        const email = `${studentId}@snru.ac.th`;
+
+        const { error } = await supabase.auth.signUp({ email, password });
+        
+        if (error) {
+            if(error.message.includes("already registered")) {
+                notify('บัญชีนี้มีอยู่ในระบบแล้ว โปรดเข้าสู่ระบบ', 'error');
+            } else {
+                notify('การสมัครล้มเหลว: ' + error.message, 'error');
+            }
+            btn.disabled = false;
+            return;
+        }
+
+        // เชื่อมโยงบัญชีด้วย RPC อย่างปลอดภัย
+        const { data: linkSuccess, error: linkErr } = await supabase.rpc('link_student_account', { p_student_id: studentId });
+        
+        if (linkErr || !linkSuccess) {
+            notify('ผูกบัญชีไม่สำเร็จ รหัสอาจผิด ซ้ำ หรือไม่มีในระบบ', 'error');
+            await supabase.auth.signOut();
+            btn.disabled = false;
+        } else {
+            notify('ลงทะเบียนสำเร็จ! กำลังเข้าสู่ระบบ...', 'success');
+            setTimeout(() => window.location.reload(), 1500);
+        }
+    },
+
+    logout: async function() {
+        await supabase.auth.signOut();
+        window.location.reload();
+    },
+
+    toggleAuthMode: function(mode) {
+        if(mode === 'register') {
+            document.getElementById('login-form-container').classList.add('hidden');
+            document.getElementById('register-form-container').classList.remove('hidden');
+        } else {
+            document.getElementById('register-form-container').classList.add('hidden');
+            document.getElementById('login-form-container').classList.remove('hidden');
+        }
+    },
+
+    showView: function(viewId) {
+        ['view-setup', 'view-auth', 'view-teacher', 'view-student', 'view-lesson', 'view-quiz']
+            .forEach(v => document.getElementById(v).classList.add('hidden'));
+        document.getElementById(viewId).classList.remove('hidden');
+        window.scrollTo(0, 0);
+    },
+
+    loadStudentDashboard: async function() {
+        this.showView('view-student');
+        
+        // รูปโปรไฟล์
+        const photoEl = document.getElementById('student-photo');
+        if (state.studentData.photo_path) {
+            // สร้าง signed URL สั้นๆ
+            const { data } = await supabase.storage.from('photos').createSignedUrl(state.studentData.photo_path, 60);
+            if(data && data.signedUrl) photoEl.src = data.signedUrl;
+        } else {
+            photoEl.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#cbd5e1"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="36" fill="#fff">📷</text></svg>';
+        }
+
+        // ดึงความก้าวหน้าและการทดสอบที่ทำไปแล้ว
+        const [{ data: progress }, { data: attempts }] = await Promise.all([
+            supabase.from('progress').select('unit').eq('done', true),
+            supabase.from('attempts').select('kind')
+        ]);
+        
+        state.progress = progress ? progress.map(p => p.unit) : [];
+        state.attempts = attempts ? attempts.map(a => a.kind) : [];
+
+        this.renderStudentPath();
+        this.renderStudentSummary();
+    },
+
+    renderStudentPath: function() {
+        const pathEl = document.getElementById('student-path');
+        pathEl.innerHTML = '';
+        
+        const hasPre = state.attempts.includes('pre');
+        const hasPost = state.attempts.includes('post');
+        const unitsDone = state.progress.length;
+
+        pathEl.appendChild(this.createPathItem('ก่อนเรียน', 'แบบทดสอบก่อนเรียน', hasPre, true, () => this.startQuiz('pre')));
+        
+        for(let i = 1; i <= 5; i++) {
+            const isUnlocked = hasPre && (i === 1 || state.progress.includes(i-1));
+            const isDone = state.progress.includes(i);
+            pathEl.appendChild(this.createPathItem(`หน่วย ${i}`, COURSE_CONTENT[i].title, isDone, isUnlocked, () => this.openUnit(i)));
+        }
+
+        const postUnlocked = (unitsDone >= 5) && !hasPost;
+        pathEl.appendChild(this.createPathItem('หลังเรียน', 'แบบทดสอบหลังเรียน', hasPost, postUnlocked, () => this.startQuiz('post')));
+    },
+
+    createPathItem: function(label, title, isDone, isUnlocked, onClick) {
+        const li = document.createElement('li');
+        li.style.padding = '0.75rem';
+        li.style.border = '1px solid var(--border)';
+        li.style.marginBottom = '0.5rem';
+        li.style.borderRadius = '4px';
+        li.style.display = 'flex';
+        li.style.justifyContent = 'space-between';
+        li.style.alignItems = 'center';
+        li.style.backgroundColor = isDone ? '#ecfdf5' : (isUnlocked ? '#fff' : '#f1f5f9');
+
+        const textDiv = document.createElement('div');
+        const strong = document.createElement('strong');
+        strong.textContent = label + ': ';
+        textDiv.appendChild(strong);
+        textDiv.appendChild(document.createTextNode(title));
+
+        const btn = document.createElement('button');
+        if (isDone) {
+            btn.textContent = 'ทำแล้ว/ทบทวน';
+            btn.className = 'btn-outline-dark';
+            btn.style.color = 'var(--success)';
+            btn.style.borderColor = 'var(--success)';
+            btn.onclick = onClick;
+        } else if (isUnlocked) {
+            btn.textContent = 'เข้าสู่บทเรียน';
+            btn.className = 'btn-primary';
+            btn.onclick = onClick;
+        } else {
+            btn.textContent = 'ล็อก';
+            btn.className = 'btn-outline-dark';
+            btn.disabled = true;
+        }
+
+        li.appendChild(textDiv);
+        li.appendChild(btn);
+        return li;
+    },
+
+    renderStudentSummary: async function() {
+        const sumEl = document.getElementById('student-summary');
+        sumEl.innerHTML = '';
+        
+        if (!state.attempts.includes('post')) {
+            sumEl.classList.add('hidden');
+            return;
+        }
+
+        // ดึงจาก view ที่คำนวณ Normalized Gain ไว้แล้วอย่างปลอดภัย
+        const { data, error } = await supabase.from('results').select('pre_score, post_score, normalized_gain').eq('id', state.studentData.id).single();
+        
+        if (data) {
+            sumEl.classList.remove('hidden');
+            const p1 = document.createElement('p');
+            p1.textContent = `ผลคะแนน: ก่อนเรียน ${data.pre_score}/10 | หลังเรียน ${data.post_score}/10`;
+            sumEl.appendChild(p1);
+
+            const p2 = document.createElement('p');
+            const gainText = data.normalized_gain === 'N/A' ? 'คำนวณไม่ได้ (เนื่องจากคะแนนก่อนเรียนเต็ม 10)' : data.normalized_gain;
+            p2.innerHTML = `<strong>Normalized Gain:</strong> ${gainText}`;
+            sumEl.appendChild(p2);
+
+            const p3 = document.createElement('p');
+            p3.style.fontSize = '0.85rem';
+            p3.textContent = '*หมายเหตุ: เกณฑ์แปลผลของ Hake (1998) ออกแบบมาสำหรับตีความค่าเฉลี่ยของกลุ่ม ไม่ใช่เกณฑ์จัดระดับผลการเรียนของนักเรียนรายบุคคลโดยอัตโนมัติ';
+            sumEl.appendChild(p3);
+        }
+    },
+
+    startQuiz: function(kind) {
+        state.currentQuizKind = kind;
+        state.quizAnswers = {};
+        this.showView('view-quiz');
+        
+        // สลับชุดข้อสอบจากเลขประจำตัว
+        const lastDigit = parseInt(state.studentData.id.slice(-1));
+        const isEven = lastDigit % 2 === 0;
+        const set = (kind === 'pre') ? (isEven ? 'A' : 'B') : (isEven ? 'B' : 'A');
+        
+        safeText(document.getElementById('quiz-title'), `แบบทดสอบ${kind === 'pre' ? 'ก่อน' : 'หลัง'}เรียน (ชุด ${set})`);
+        
+        const qContainer = document.getElementById('quiz-container');
+        qContainer.innerHTML = ''; // เคลียร์ของเก่า
+        
+        const questions = QUIZ_SETS[set];
+        questions.forEach((q, idx) => {
+            const div = document.createElement('div');
+            div.style.marginBottom = '1.5rem';
+            
+            const p = document.createElement('p');
+            p.style.fontWeight = '600';
+            p.textContent = q.q;
+            div.appendChild(p);
+            
+            q.choices.forEach((choice, cIdx) => {
+                const label = document.createElement('label');
+                label.className = 'choice-label';
+                
+                const input = document.createElement('input');
+                input.type = 'radio';
+                input.name = `q_${idx+1}`;
+                input.value = cIdx + 1;
+                input.onchange = (e) => { state.quizAnswers[idx+1] = parseInt(e.target.value); };
+                
+                label.appendChild(input);
+                label.appendChild(document.createTextNode(choice));
+                div.appendChild(label);
+            });
+            qContainer.appendChild(div);
+        });
+        
+        document.getElementById('btn-submit-quiz').disabled = false;
+    },
+
+    submitQuiz: async function() {
+        if(Object.keys(state.quizAnswers).length < 10) {
+            return notify('กรุณาตอบคำถามให้ครบ 10 ข้อ', 'error');
+        }
+
+        const btn = document.getElementById('btn-submit-quiz');
+        btn.disabled = true;
+        
+        try {
+            // ส่งคำตอบไปตรวจฝั่ง DB อย่างปลอดภัย (ไม่ใช้ client-side scoring)
+            const { data, error } = await supabase.rpc('submit_attempt_secure', {
+                p_kind: state.currentQuizKind,
+                p_answers: state.quizAnswers
+            });
+
+            if (error) throw error;
+            
+            let msg = data.message;
+            if(data.score !== undefined) msg += `\nคะแนนของคุณคือ: ${data.score}/10`;
+            notify(msg, 'success');
+            
+            await this.loadStudentDashboard();
+
+        } catch (err) {
+            console.error(err);
+            notify('เกิดข้อผิดพลาด: ' + err.message, 'error');
+            btn.disabled = false;
+        }
+    },
+
+    openUnit: function(unitNum) {
+        state.currentUnit = unitNum;
+        this.showView('view-lesson');
+        
+        const content = COURSE_CONTENT[unitNum];
+        safeText(document.getElementById('lesson-title'), content.title);
+        // อนุญาต innerHTML เฉพาะข้อมูลที่ hardcode ในไฟล์นี้เพื่อแสดงโครงสร้าง HTML
+        document.getElementById('lesson-content').innerHTML = content.body;
+
+        // คำถามแทรก
+        const qContainer = document.getElementById('lesson-question-container');
+        qContainer.innerHTML = '';
+        
+        if (content.questions && content.questions.length > 0) {
+            document.getElementById('lesson-interspersed').classList.remove('hidden');
+            document.getElementById('lesson-next-btn').disabled = true;
+            
+            content.questions.forEach((q) => {
+                const div = document.createElement('div');
+                div.style.marginBottom = '1rem';
+                div.textContent = q.q;
+                
+                const select = document.createElement('select');
+                select.className = 'form-group';
+                select.style.width = '100%';
+                select.style.marginTop = '0.5rem';
+                
+                const optDef = document.createElement('option');
+                optDef.value = ""; optDef.textContent = "-- เลือกคำตอบ --";
+                select.appendChild(optDef);
+                
+                q.choices.forEach((c, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i; opt.textContent = c;
+                    select.appendChild(opt);
+                });
+
+                const feedback = document.createElement('div');
+                feedback.style.marginTop = '0.5rem';
+                feedback.style.fontSize = '0.9rem';
+
+                select.onchange = () => {
+                    if (parseInt(select.value) === q.ans) {
+                        feedback.textContent = "✅ ถูกต้อง: " + q.explanation;
+                        feedback.style.color = "var(--success)";
+                        document.getElementById('lesson-next-btn').disabled = false;
+                    } else {
+                        feedback.textContent = "❌ ยังไม่ถูกต้อง ลองพิจารณาใหม่อีกครั้ง";
+                        feedback.style.color = "var(--danger)";
+                        document.getElementById('lesson-next-btn').disabled = true;
+                    }
+                };
+
+                qContainer.appendChild(div);
+                qContainer.appendChild(select);
+                qContainer.appendChild(feedback);
+            });
+        } else {
+            document.getElementById('lesson-interspersed').classList.add('hidden');
+            document.getElementById('lesson-next-btn').disabled = false;
+        }
+
+        // ระบบส่งงาน (หน่วยที่ 4)
+        const subDiv = document.getElementById('lesson-submission');
+        if (unitNum === 4) {
+            subDiv.classList.remove('hidden');
+        } else {
+            subDiv.classList.add('hidden');
+        }
+    },
+
+    toggleSubmissionForm: function() {
+        const kind = document.getElementById('submit-kind').value;
+        if(kind === 'link') {
+            document.getElementById('submit-link-container').classList.remove('hidden');
+            document.getElementById('submit-file-container').classList.add('hidden');
+        } else {
+            document.getElementById('submit-link-container').classList.add('hidden');
+            document.getElementById('submit-file-container').classList.remove('hidden');
+        }
+    },
+
+    submitWork: async function() {
+        const kind = document.getElementById('submit-kind').value;
+        const btn = document.getElementById('btn-submit-work');
+        let insertData = {
+            unit: 4,
+            kind: kind
+        };
+
+        if (kind === 'link') {
+            const url = document.getElementById('submit-url').value.trim();
+            if (!isValidURL(url)) return notify('URL ไม่ถูกต้อง ต้องเริ่มด้วย http หรือ https', 'error');
+            insertData.url = url;
+        } else {
+            const fileInput = document.getElementById('submit-file');
+            const file = fileInput.files[0];
+            if (!file) return notify('กรุณาเลือกไฟล์', 'error');
+            
+            const allowedExts = ['pdf', 'png', 'jpg', 'jpeg', 'mp4'];
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!allowedExts.includes(ext)) return notify('รองรับเฉพาะไฟล์ PDF, PNG, JPG และ MP4 เท่านั้น', 'error');
+            if (file.size > 20 * 1024 * 1024) return notify('ขนาดไฟล์ต้องไม่เกิน 20MB', 'error');
+
+            btn.disabled = true;
+            notify('กำลังอัปโหลดไฟล์...', 'info');
+
+            const path = `${state.user.id}/${generateUUID()}.${ext}`;
+            const { error: uploadError } = await supabase.storage.from('submissions').upload(path, file);
+            
+            if (uploadError) {
+                btn.disabled = false;
+                return notify('อัปโหลดล้มเหลว: ' + uploadError.message, 'error');
+            }
+            insertData.storage_path = path;
+        }
+
+        try {
+            // บันทึกลงฐานข้อมูล โดย RLS จะเช็ค user_id อัตโนมัติ (ไม่สามารถส่งคะแนนหรือความเห็นครูไปพร้อมกันได้)
+            const { error } = await supabase.from('submissions').insert(insertData);
+            if (error) throw error;
+            notify('ส่งงานสำเร็จ', 'success');
+            document.getElementById('submit-url').value = '';
+            document.getElementById('submit-file').value = '';
+        } catch (err) {
+            notify('เกิดข้อผิดพลาดในการบันทึก: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    },
+
+    finishUnit: async function() {
+        const unit = state.currentUnit;
+        if (!state.progress.includes(unit)) {
+            const { error } = await supabase.from('progress').insert({ unit: unit, done: true });
+            if (error) {
+                console.error(error);
+                return notify("บันทึกความก้าวหน้าล้มเหลว", 'error');
+            }
+        }
+        await this.loadStudentDashboard();
+    },
+
+    uploadProfilePhoto: function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // ตรวจสอบชนิดไฟล์ (PNG/JPEG)
+        if (!['image/jpeg', 'image/png'].includes(file.type)) {
+            return notify('รองรับเฉพาะไฟล์ PNG และ JPG เท่านั้น', 'error');
+        }
+        
+        notify('กำลังจัดการรูปภาพ...', 'info');
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = async () => {
+                // Resize ด้วย Canvas ป้องกันรูปใหญ่เกิน
+                const canvas = document.createElement('canvas');
+                const MAX_SIZE = 400;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height && width > MAX_SIZE) {
+                    height *= MAX_SIZE / width; width = MAX_SIZE;
+                } else if (height > MAX_SIZE) {
+                    width *= MAX_SIZE / height; height = MAX_SIZE;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                canvas.toBlob(async (blob) => {
+                    const ext = file.name.split('.').pop();
+                    const path = `${state.user.id}/profile_${Date.now()}.${ext}`;
+                    
+                    try {
+                        const { error: uploadErr } = await supabase.storage.from('photos').upload(path, blob, { upsert: true });
+                        if (uploadErr) throw uploadErr;
+
+                        const { error: dbErr } = await supabase.from('students').update({ photo_path: path }).eq('id', state.studentData.id);
+                        if (dbErr) throw dbErr;
+
+                        notify('อัปเดตรูปโปรไฟล์สำเร็จ', 'success');
+                        this.loadStudentDashboard();
+
+                    } catch (err) {
+                        notify('อัปโหลดล้มเหลว: ' + err.message, 'error');
+                    }
+                }, 'image/jpeg', 0.8);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    },
+
+    showStudentDashboard: function() {
+        this.showView('view-student');
+    },
+
+    loadTeacherData: async function(tab) {
+        const contentDiv = document.getElementById('teacher-content');
+        contentDiv.innerHTML = '<p>กำลังโหลดข้อมูล...</p>';
+        
+        if (tab === 'students') {
+            // ดึงจาก View `results` ที่ปลอดภัยและคำนวณ Gain ไว้แล้ว
+            const { data, error } = await supabase.from('results').select('*').order('id', { ascending: true });
+            if (error) return safeText(contentDiv, 'ข้อผิดพลาด: ' + error.message);
+
+            const table = document.createElement('table');
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>รหัส</th><th>ชื่อ-สกุล</th><th>ก่อนเรียน</th><th>ชุด</th>
+                        <th>หลังเรียน</th><th>ชุด</th><th>Gain</th>
+                    </tr>
+                </thead><tbody></tbody>`;
+            
+            const tbody = table.querySelector('tbody');
+            data.forEach(s => {
+                const tr = document.createElement('tr');
+                const addCell = (text) => { 
+                    const td = document.createElement('td'); 
+                    safeText(td, text != null ? text : '-'); 
+                    tr.appendChild(td); 
+                };
+                
+                addCell(s.id);
+                addCell(`${s.title}${s.first_name} ${s.last_name}`);
+                addCell(s.pre_score);
+                addCell(s.pre_set);
+                addCell(s.post_score);
+                addCell(s.post_set);
+                addCell(s.normalized_gain);
+                
+                tbody.appendChild(tr);
+            });
+            contentDiv.innerHTML = '';
+            contentDiv.appendChild(table);
+        } else if (tab === 'submissions') {
+            // ต้นแบบการแสดงงานที่ส่ง
+            const { data, error } = await supabase.from('submissions').select('id, unit, kind, url, created_at, students(id, first_name)').order('created_at', { ascending: false });
+            if (error) return safeText(contentDiv, 'ข้อผิดพลาด: ' + error.message);
+            
+            const table = document.createElement('table');
+            table.innerHTML = `<thead><tr><th>นักเรียน (รหัส)</th><th>หน่วย</th><th>ประเภท</th><th>ข้อมูล/ลิงก์</th></tr></thead><tbody></tbody>`;
+            const tbody = table.querySelector('tbody');
+            
+            data.forEach(sub => {
+                const tr = document.createElement('tr');
+                const tdName = document.createElement('td');
+                const studentId = sub.students ? sub.students.id : 'ไม่ทราบ';
+                safeText(tdName, studentId);
+                tr.appendChild(tdName);
+                
+                const tdUnit = document.createElement('td');
+                safeText(tdUnit, `หน่วย ${sub.unit}`);
+                tr.appendChild(tdUnit);
+                
+                const tdKind = document.createElement('td');
+                safeText(tdKind, sub.kind === 'link' ? 'ลิงก์' : 'ไฟล์');
+                tr.appendChild(tdKind);
+
+                const tdData = document.createElement('td');
+                if(sub.kind === 'link' && isValidURL(sub.url)) {
+                    const a = document.createElement('a');
+                    a.href = sub.url;
+                    a.target = "_blank";
+                    a.rel = "noopener noreferrer";
+                    a.textContent = "เปิดลิงก์";
+                    tdData.appendChild(a);
+                } else {
+                    safeText(tdData, "ไฟล์ (เปิดใน Supabase Storage)");
+                }
+                tr.appendChild(tdData);
+                tbody.appendChild(tr);
+            });
+            contentDiv.innerHTML = '';
+            contentDiv.appendChild(table);
+        }
+    },
+
+    exportCSV: async function() {
+        const { data, error } = await supabase.from('results').select('*').order('id', { ascending: true });
+        if (error) return notify("Export failed", 'error');
+
+        let csv = '\uFEFF'; // UTF-8 BOM สำหรับ Excel
+        csv += 'รหัส,คำนำหน้า,ชื่อ,นามสกุล,ห้อง,ก่อนเรียน,ชุด,หลังเรียน,ชุด,NormalizedGain\n';
+
+        const sanitizeCSV = (str) => {
+            if (str == null) return '';
+            let s = String(str);
+            // ป้องกัน Spreadsheet Formula Injection (CSV Injection)
+            if (/^[=+\-@]/.test(s)) {
+                s = "'" + s; 
+            }
+            s = s.replace(/"/g, '""');
+            if (s.includes(',') || s.includes('\n') || s.includes('"')) {
+                s = `"${s}"`;
+            }
+            return s;
+        };
+
+        data.forEach(row => {
+            csv += [
+                sanitizeCSV(row.id), sanitizeCSV(row.title), sanitizeCSV(row.first_name), sanitizeCSV(row.last_name),
+                sanitizeCSV(row.section), sanitizeCSV(row.pre_score), sanitizeCSV(row.pre_set),
+                sanitizeCSV(row.post_score), sanitizeCSV(row.post_set), sanitizeCSV(row.normalized_gain)
+            ].join(',') + '\n';
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "student_results.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        notify('ดาวน์โหลด CSV สำเร็จ', 'success');
+    }
+};
+
+// เริ่มทำงานเมื่อโหลดหน้าเสร็จ
+document.addEventListener('DOMContentLoaded', () => app.init());
+</script>
+
+</body>
+</html>
