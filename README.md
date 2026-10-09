@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/33241072/README.md)
 # ระบบ CAI วิทยาการคำนวณ เรื่องความจริงเสริม (AR)
 
 โปรเจกต์นี้คือ คอร์สแวร์ (Computer-Assisted Instruction: CAI) รายวิชา วิทยาการคำนวณ รหัสวิชา 2103404 สำหรับนักเรียนชั้นประถมศึกษาปีที่ 4 พัฒนาขึ้นในรูปแบบ Web Application แบบหน้าเดียว (Single Page Application) โดยเน้นความปลอดภัยของข้อมูลและการจัดการสิทธิ์ผู้ใช้งานอย่างรัดกุม
